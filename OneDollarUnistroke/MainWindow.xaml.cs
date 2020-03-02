@@ -24,5 +24,14 @@ namespace OneDollarUnistroke
         {
             InitializeComponent();
         }
+
+        /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
+        /// The current code slightly zooms in the window, but this is just to test that the handler works.
+        private void LeftMouseUpHandler(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            Matrix m = new Matrix();
+            m.Scale(1.1d, 1.1d);
+            ((InkCanvas)sender).Strokes.Transform(m, true);
+        }
     }
 }
