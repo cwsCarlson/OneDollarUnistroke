@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:OneDollarUnistroke"
         mc:Ignorable="d"
         Title="MainWindow" Height="350" Width="525">
-    <Grid>
-        
-    </Grid>
+  <Grid>
+    <InkCanvas/>
+  </Grid>
 </Window>
