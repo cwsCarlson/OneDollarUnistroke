@@ -64,6 +64,18 @@ namespace OneDollarUnistroke
             return sampledPoints;
         }
 
+        private StylusPoint GetCentroid(StylusPointCollection points)
+        {
+            double xSum = 0;
+            double ySum = 0;
+            foreach(StylusPoint p in points)
+            {
+                xSum += p.X;
+                ySum += p.Y;
+            }
+            return new StylusPoint(xSum / points.Count, ySum / points.Count);
+        }
+
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
         /// This means that the algorithm is run.
         private void LeftMouseUpHandler(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -99,6 +111,15 @@ namespace OneDollarUnistroke
             }
 
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
+            StylusPoint centroid = GetCentroid(points);
+            StylusPointCollection ctr = new StylusPointCollection
+            {
+                new StylusPoint(centroid.X, centroid.Y)
+            };
+
+            Stroke ctrCir = new PointCircle(ctr);
+            ctrCir.DrawingAttributes.Color = Colors.Orange;
+            myCanvas.Strokes.Add(ctrCir);
 
             // Step 3 - Scale the points to fit in a boundary square.
 
