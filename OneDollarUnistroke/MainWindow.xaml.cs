@@ -17,7 +17,7 @@ namespace OneDollarUnistroke
 
         /// SampleStroke - returns a StylusPointCollection of N points
         ///                on the point, which are equal distance apart.
-        public StylusPointCollection SampleStroke(Stroke curStroke)
+        private StylusPointCollection SampleStroke(Stroke curStroke)
         {
             // Get all the stylus points and convert them into a PathFigureCollection
             // consisting of line segments between each point.
@@ -52,9 +52,11 @@ namespace OneDollarUnistroke
             };
 
             // For every 1/64th of the path, get the point and add it to sampledPoints.
+            // (N - 1 is used so the last point is the end of the stroke.
             StylusPointCollection sampledPoints = new StylusPointCollection();
             for (double i = 0; i <= N - 1; i++)
             {
+                #pragma warning disable IDE0059 // Ignore unnecessary assignment of tangent
                 pg.GetPointAtFractionLength(i / (N - 1), out Point curPoint, out Point tangent);
                 sampledPoints.Add(new StylusPoint(curPoint.X, curPoint.Y));
             }
@@ -70,12 +72,12 @@ namespace OneDollarUnistroke
             if (myCanvas.Strokes.Count == 0)
                 return;
 
-            // Delete all previous strokes.
-            while(myCanvas.Strokes.Count != 1)
-                myCanvas.Strokes.Remove(myCanvas.Strokes[0]);
-
             // Get the ink stroke so it can be utilized.
-            Stroke curStroke = myCanvas.Strokes[0];
+            Stroke curStroke = myCanvas.Strokes[myCanvas.Strokes.Count - 1];
+
+            // Delete all previous strokes and circles.
+            myCanvas.Strokes.Clear();
+            myCanvas.Strokes.Add(curStroke);
 
             // Step 1 - Split the stroke into N points.
             StylusPointCollection points = SampleStroke(curStroke);
@@ -91,7 +93,7 @@ namespace OneDollarUnistroke
 
                 Stroke cir = new PointCircle(pts);
 
-                cir.DrawingAttributes.Color = System.Windows.Media.Color.FromRgb(curShade, 0, 0);
+                cir.DrawingAttributes.Color = Color.FromRgb(curShade, 0, 0);
                 myCanvas.Strokes.Add(cir);
                 curShade += 0x4;
             }
