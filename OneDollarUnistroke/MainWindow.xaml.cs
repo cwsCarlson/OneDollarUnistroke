@@ -76,6 +76,21 @@ namespace OneDollarUnistroke
             return new StylusPoint(xSum / points.Count, ySum / points.Count);
         }
 
+        // DrawPointCircle - Draws a PointCircle at (x, y) in the given color.
+        private void DrawPointCircle(double x, double y, Color color)
+        {
+            // Create a StylusPoint at (x, y).
+            StylusPointCollection spc = new StylusPointCollection
+            {
+                new StylusPoint(x, y)
+            };
+
+            // Create a PointCircle at the StylusPoint, set the color, and add it.
+            Stroke cir = new PointCircle(spc);
+            cir.DrawingAttributes.Color = color;
+            myCanvas.Strokes.Add(cir);
+        }
+
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
         /// This means that the algorithm is run.
         private void LeftMouseUpHandler(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -98,28 +113,17 @@ namespace OneDollarUnistroke
             byte curShade = 0;
             foreach (StylusPoint p in points)
             {
-                StylusPointCollection pts = new StylusPointCollection
-                {
-                    new StylusPoint(p.X, p.Y)
-                };
-
-                Stroke cir = new PointCircle(pts);
-
-                cir.DrawingAttributes.Color = Color.FromRgb(curShade, 0, 0);
-                myCanvas.Strokes.Add(cir);
+                DrawPointCircle(p.X, p.Y, Color.FromRgb(curShade, 0, 0));
                 curShade += 0x4;
             }
 
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
             StylusPoint centroid = GetCentroid(points);
-            StylusPointCollection ctr = new StylusPointCollection
-            {
-                new StylusPoint(centroid.X, centroid.Y)
-            };
+            double xCenter = myCanvas.ActualWidth / 2;
+            double yCenter = myCanvas.ActualHeight / 2;
 
-            Stroke ctrCir = new PointCircle(ctr);
-            ctrCir.DrawingAttributes.Color = Colors.Orange;
-            myCanvas.Strokes.Add(ctrCir);
+            // DEBUG: Draw a circle at the centroid.
+            DrawPointCircle(centroid.X, centroid.Y, Colors.Orange);
 
             // Step 3 - Scale the points to fit in a boundary square.
 
