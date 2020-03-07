@@ -10,6 +10,7 @@ namespace OneDollarUnistroke
     public partial class MainWindow : Window
     {
         const int N = 64;
+        const int BOX_SIZE = 100;
 
         public MainWindow()
         {
@@ -46,14 +47,11 @@ namespace OneDollarUnistroke
                 figureCollection.Add(figure);
             }
 
-            // Convert the PathFigureCollection to the PathGeometry.
-            PathGeometry pg = new PathGeometry
-            {
-                Figures = figureCollection
-            };
+            // Convert the PathFigureCollection into a PathGeometry.
+            PathGeometry pg = new PathGeometry{Figures = figureCollection};
 
             // For every 1/64th of the path, get the point and add it to sampledPoints.
-            // (N - 1 is used so the last point is the end of the stroke.
+            // (N - 1 is used so the last point is the end of the stroke.)
             StylusPointCollection sampledPoints = new StylusPointCollection();
             for (double i = 0; i <= N - 1; i++)
             {
@@ -65,6 +63,7 @@ namespace OneDollarUnistroke
             return sampledPoints;
         }
 
+        // GetCentroid - Calculates and returns the centroid of points.
         private StylusPoint GetCentroid(StylusPointCollection points)
         {
             double xSum = 0;
@@ -103,14 +102,60 @@ namespace OneDollarUnistroke
             return rotated;
         }
 
+        // GetCollectionDimensions - Return the width and height of points.
+        private void GetCollectionDimensions(StylusPointCollection points, out double width, out double height)
+        {
+            // Set the defaults.
+            double minPosX = points[0].X;
+            double maxPosX = points[0].X;
+            double minPosY = points[0].Y;
+            double maxPosY = points[0].Y;
+
+            // Find the most extreme X and Y values and assign them to the variables.
+            foreach(StylusPoint p in points)
+            {
+                if (p.X < minPosX)
+                    minPosX = p.X;
+                if (p.X > maxPosX)
+                    maxPosX = p.X;
+                if (p.Y < minPosY)
+                    minPosY = p.Y;
+                if (p.Y > maxPosY)
+                    maxPosY = p.Y;
+            }
+
+            // Assign the values to output.
+            width = maxPosX - minPosX;
+            height = maxPosY - minPosY;
+        }
+
+        // ScaleToBox - Scale points to fit in a square with sizes of boxSideLen around the centroid.
+        private StylusPointCollection ScaleToBox(StylusPointCollection points, double boxSideLen, StylusPoint centroid)
+        {
+            // Get the dimensions and set the ratios of the width and height.
+            GetCollectionDimensions(points, out double width, out double height);
+            double widthRatio = boxSideLen / width;
+            double heightRatio = boxSideLen / height;
+            StylusPointCollection scaled = new StylusPointCollection();
+
+            // Scale every point to the given ratios.
+            for (int i = 0; i < points.Count; i++)
+            {
+                StylusPoint curPoint = points[i];
+
+                curPoint.X = (curPoint.X - centroid.X) * widthRatio + centroid.X;
+                curPoint.Y = (curPoint.Y - centroid.Y) * heightRatio + centroid.Y;
+
+                scaled.Add(curPoint);
+            }
+            return scaled;
+        }
+
         // DrawPointCircle - Draws a PointCircle at (x, y) in the given color.
         private void DrawPointCircle(double x, double y, Color color)
         {
             // Create a StylusPoint at (x, y).
-            StylusPointCollection spc = new StylusPointCollection
-            {
-                new StylusPoint(x, y)
-            };
+            StylusPointCollection spc = new StylusPointCollection{new StylusPoint(x, y)};
 
             // Create a PointCircle at the StylusPoint, set the color, and add it.
             Stroke cir = new PointCircle(spc);
@@ -164,8 +209,16 @@ namespace OneDollarUnistroke
                 curShade += 0x4;
             }
 
-
             // Step 3 - Scale the points to fit in a boundary square.
+            points = ScaleToBox(points, BOX_SIZE, centroid);
+
+            // DEBUG: Draw a circle around each rotated point.
+            curShade = 0;
+            foreach (StylusPoint p in points)
+            {
+                DrawPointCircle(p.X, p.Y, Color.FromRgb(255, curShade, 0));
+                curShade += 0x4;
+            }
 
             // Step 4 - Compare each point set to several predetermined and determine the closest.
 
@@ -173,6 +226,7 @@ namespace OneDollarUnistroke
         }
     }
 
+    // Point Circle - a circle drawn around a specific point.
     public class PointCircle : Stroke
     {
         public PointCircle(StylusPointCollection pts) : base(pts)
@@ -180,6 +234,7 @@ namespace OneDollarUnistroke
             this.StylusPoints = pts;
         }
 
+        // DrawCore - Sets up and draws the ellipse.
         protected override void DrawCore(DrawingContext drawingContext, DrawingAttributes drawingAttributes)
         {
             SolidColorBrush brush2 = new SolidColorBrush(drawingAttributes.Color);
