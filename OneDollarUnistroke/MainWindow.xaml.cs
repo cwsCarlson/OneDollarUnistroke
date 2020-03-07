@@ -1,7 +1,8 @@
-﻿using System.Windows;
-using System.Windows.Media;
+﻿using System;
+using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace OneDollarUnistroke
 {
@@ -68,12 +69,38 @@ namespace OneDollarUnistroke
         {
             double xSum = 0;
             double ySum = 0;
-            foreach(StylusPoint p in points)
+            foreach (StylusPoint p in points)
             {
                 xSum += p.X;
                 ySum += p.Y;
             }
             return new StylusPoint(xSum / points.Count, ySum / points.Count);
+        }
+
+        // RotateAboutCentroid - Rotate points around centroid counterclockwise by the radians of angle.
+        private StylusPointCollection RotateAboutCentroid(StylusPointCollection points, double angle, StylusPoint centroid)
+        {
+            StylusPointCollection rotated = new StylusPointCollection();
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                // origX and Y describe curPoint's location relative to the centroid.
+                StylusPoint curPoint = points[i];
+                double origX = curPoint.X - centroid.X;
+                double origY = curPoint.Y - centroid.Y;
+                
+                // Calculate the new position relative to the centroid.
+                // This is slightly different than the typical formula, since InkCanvas
+                // does not use Cartesian coordinates: y is highest at the bottom.
+                curPoint.X = origX * Math.Cos(angle) + origY * Math.Sin(angle);
+                curPoint.Y = origY * Math.Cos(angle) - origX * Math.Sin(angle);
+
+                // Move the new point to its actual position and add it to the new figure.
+                curPoint.X += centroid.X;
+                curPoint.Y += centroid.Y;
+                rotated.Add(curPoint);
+            }
+            return rotated;
         }
 
         // DrawPointCircle - Draws a PointCircle at (x, y) in the given color.
@@ -119,11 +146,24 @@ namespace OneDollarUnistroke
 
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
             StylusPoint centroid = GetCentroid(points);
-            double xCenter = myCanvas.ActualWidth / 2;
-            double yCenter = myCanvas.ActualHeight / 2;
 
             // DEBUG: Draw a circle at the centroid.
             DrawPointCircle(centroid.X, centroid.Y, Colors.Orange);
+
+            // Get the angle between the first point and the centroid.
+            double angleWithHorizontal = Math.Atan2(centroid.Y - points[0].Y, points[0].X - centroid.X);
+
+            // Rotate the figure by this angle in the opposite direction.
+            points = RotateAboutCentroid(points, -1 * angleWithHorizontal, centroid);
+
+            // DEBUG: Draw a circle around each rotated point.
+            curShade = 0;
+            foreach (StylusPoint p in points)
+            {
+                DrawPointCircle(p.X, p.Y, Color.FromRgb(0, 255, curShade));
+                curShade += 0x4;
+            }
+
 
             // Step 3 - Scale the points to fit in a boundary square.
 
