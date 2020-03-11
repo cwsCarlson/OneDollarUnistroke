@@ -9,12 +9,27 @@ namespace OneDollarUnistroke
     /// Interaction logic for MainWindow.xaml
     public partial class MainWindow : Window
     {
-        const int N = 64;
-        const int BOX_SIZE = 100;
+        private const int N = 64;
+        private const int BOX_SIZE = 100;
+        private readonly StylusPointCollection testSymbol;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            // Create the testSymbol.
+            testSymbol = new StylusPointCollection
+            {
+                new StylusPoint(-1, -1),
+                new StylusPoint(1, 1),
+                new StylusPoint(1, -1),
+                new StylusPoint(-1, 1)
+            };
+            testSymbol = SampleStroke(new Stroke(testSymbol));
+            StylusPoint centroid = GetCentroid(testSymbol);
+            double angleWithHorizontal = Math.Atan2(centroid.Y - testSymbol[0].Y, testSymbol[0].X - centroid.X);
+            testSymbol = RotateAboutCentroid(testSymbol, -1 * angleWithHorizontal, centroid);
+            testSymbol = ScaleToBox(testSymbol, BOX_SIZE, centroid);
         }
 
         /// SampleStroke - returns a StylusPointCollection of N points
@@ -138,13 +153,13 @@ namespace OneDollarUnistroke
             double heightRatio = boxSideLen / height;
             StylusPointCollection scaled = new StylusPointCollection();
 
-            // Scale every point to the given ratios.
+            // Scale every point to the given ratios and move the centroid to the origin.
             for (int i = 0; i < points.Count; i++)
             {
                 StylusPoint curPoint = points[i];
 
-                curPoint.X = (curPoint.X - centroid.X) * widthRatio + centroid.X;
-                curPoint.Y = (curPoint.Y - centroid.Y) * heightRatio + centroid.Y;
+                curPoint.X = (curPoint.X - centroid.X) * widthRatio;
+                curPoint.Y = (curPoint.Y - centroid.Y) * heightRatio;
 
                 scaled.Add(curPoint);
             }
@@ -161,6 +176,27 @@ namespace OneDollarUnistroke
             Stroke cir = new PointCircle(spc);
             cir.DrawingAttributes.Color = color;
             myCanvas.Strokes.Add(cir);
+        }
+
+        // GetPathDistance - Calculates the path distance between spc1 and spc2.
+        private double GetPathDistance(StylusPointCollection spc1, StylusPointCollection spc2)
+        {
+            // Throw an exception if, for whatever reason, the counts do not match.
+            if (spc1.Count != spc2.Count)
+                throw new ArgumentException("Unequal StylusPoint counts.");
+            
+            // For each set, calculate the disparities in the X and Y coordinates
+            // and use them to calculate the distance between the points.
+            double sumOfDistances = 0.0;
+            for(int i = 0; i < spc1.Count; i++)
+            {
+                double xDisp = Math.Pow(spc1[i].X - spc2[i].X, 2);
+                double yDisp = Math.Pow(spc1[i].Y - spc2[i].Y, 2);
+                sumOfDistances += Math.Sqrt(xDisp + yDisp);
+            }
+
+            // Return the average distance.
+            return sumOfDistances / spc1.Count;
         }
 
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
@@ -212,7 +248,7 @@ namespace OneDollarUnistroke
             // Step 3 - Scale the points to fit in a boundary square.
             points = ScaleToBox(points, BOX_SIZE, centroid);
 
-            // DEBUG: Draw a circle around each rotated point.
+            // DEBUG: Draw a circle around each scaled point.
             curShade = 0;
             foreach (StylusPoint p in points)
             {
@@ -221,12 +257,20 @@ namespace OneDollarUnistroke
             }
 
             // Step 4 - Compare each point set to several predetermined and determine the closest.
+            // Calculate the path distance (the average distance between corresponding points
+            // on the user's stroke and the template).
+            double pathDist = GetPathDistance(points, testSymbol);
+            Console.WriteLine(pathDist);
+
+            // Calculate the score, showing how close the path is to the template from zero to one.
+            double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
+            Console.WriteLine(score);
 
             // Step 5 - Calculate a score for this predetermined and inform the user.
         }
     }
 
-    // Point Circle - a circle drawn around a specific point.
+    // PointCircle - a circle drawn around a specific point.
     public class PointCircle : Stroke
     {
         public PointCircle(StylusPointCollection pts) : base(pts)
