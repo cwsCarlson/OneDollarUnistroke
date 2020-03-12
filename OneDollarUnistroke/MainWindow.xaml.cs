@@ -11,8 +11,11 @@ namespace OneDollarUnistroke
     {
         private const int N = 64;
         private const int BOX_SIZE = 100;
-        private StylusPoint centroid;
+        private const int MAX_RECOGNITION_ANGLE = 45;
+        private const int MARGIN_OF_RECOGNITION = 2;
+        private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
         private readonly StylusPointCollection testSymbol;
+        private StylusPoint centroid;
 
         public MainWindow()
         {
@@ -29,7 +32,7 @@ namespace OneDollarUnistroke
             testSymbol = SampleStroke(new Stroke(testSymbol));
             StylusPoint centroid = GetCentroid(testSymbol);
             double angleWithHorizontal = Math.Atan2(centroid.Y - testSymbol[0].Y, testSymbol[0].X - centroid.X);
-            testSymbol = RotateAboutCentroid(testSymbol, -1 * angleWithHorizontal);
+            testSymbol = RotateAndTranslate(testSymbol, -1 * angleWithHorizontal);
             testSymbol = ScaleToBox(testSymbol, BOX_SIZE);
         }
 
@@ -92,8 +95,9 @@ namespace OneDollarUnistroke
             return new StylusPoint(xSum / points.Count, ySum / points.Count);
         }
 
-        // RotateAboutCentroid - Rotate points around centroid counterclockwise by the radians of angle.
-        private StylusPointCollection RotateAboutCentroid(StylusPointCollection points, double angle)
+        // RotateAndTranslate - Rotate points around the centroid counterclockwise by the radians of angle,
+        //                      and then translates it to the origin.
+        private StylusPointCollection RotateAndTranslate(StylusPointCollection points, double angle)
         {
             StylusPointCollection rotated = new StylusPointCollection();
 
@@ -113,6 +117,11 @@ namespace OneDollarUnistroke
                 // Add the point to the new figure.
                 rotated.Add(curPoint);
             }
+
+            // Set the centroid to the origin, since it has been translated there.
+            centroid.X = 0;
+            centroid.Y = 0;
+
             return rotated;
         }
 
@@ -143,7 +152,7 @@ namespace OneDollarUnistroke
             height = maxPosY - minPosY;
         }
 
-        // ScaleToBox - Scale points to fit in a square with sizes of boxSideLen around the centroid.
+        // ScaleToBox - Scale points to fit in a square with sizes of boxSideLen.
         private StylusPointCollection ScaleToBox(StylusPointCollection points, double boxSideLen)
         {
             // Get the dimensions and set the ratios of the width and height.
@@ -198,6 +207,49 @@ namespace OneDollarUnistroke
             return sumOfDistances / spc1.Count;
         }
 
+        // GetBestPathDistance - Calculates the best path distance between spc1 and spc2
+        //                       by rotating spc1 until the MAX_RECOGNITION_ANGLE is met.
+        private double GetBestPathDistance(StylusPointCollection spc1, StylusPointCollection spc2)
+        {
+            // Set the first minimum and maximum theta values.
+            double minAngle = -1 * MAX_RECOGNITION_ANGLE;
+            double maxAngle = MAX_RECOGNITION_ANGLE;
+
+            // Set the first two angles of rotation.
+            double angleA = GOLD_RATIO * minAngle + (1 - GOLD_RATIO) * maxAngle;
+            double angleB = (1 - GOLD_RATIO) * minAngle + GOLD_RATIO * maxAngle;
+
+            // Get the path distances at angleA and angleB.
+            double pathDistA = GetPathDistance(RotateAndTranslate(spc1, angleA), spc2);
+            double pathDistB = GetPathDistance(RotateAndTranslate(spc1, angleB), spc2);
+
+            // While the min and max are not close, binary search for the best angle.
+            while(Math.Abs(minAngle - maxAngle) > MARGIN_OF_RECOGNITION)
+            {
+                // If angleA has a better score, move the max there and recalculate.
+                if(pathDistA < pathDistB)
+                {
+                    maxAngle = angleB;
+                    angleB = angleA;
+                    pathDistB = pathDistA;
+                    angleA = GOLD_RATIO * minAngle + (1 - GOLD_RATIO) * maxAngle;
+                    pathDistA = GetPathDistance(RotateAndTranslate(spc1, angleA), spc2);
+                }
+                // If angleB has a better score, move the min there and recalculate.
+                else
+                {
+                    minAngle = angleA;
+                    angleA = angleB;
+                    pathDistA = pathDistB;
+                    angleB = (1 - GOLD_RATIO) * minAngle + GOLD_RATIO * maxAngle;
+                    pathDistB = GetPathDistance(RotateAndTranslate(spc1, angleB), spc2);
+                }
+            }
+
+            // Return the best path distance.
+            return Math.Min(pathDistA, pathDistB);
+        }
+
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
         /// This means that the algorithm is run.
         private void LeftMouseUpHandler(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -225,6 +277,7 @@ namespace OneDollarUnistroke
             }
 
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
+            // Additionally, move the centroid to (0, 0) so future calculations are easier.
             centroid = GetCentroid(points);
 
             // DEBUG: Draw a circle at the centroid.
@@ -234,7 +287,7 @@ namespace OneDollarUnistroke
             double angleWithHorizontal = Math.Atan2(centroid.Y - points[0].Y, points[0].X - centroid.X);
 
             // Rotate the figure by this angle in the opposite direction.
-            points = RotateAboutCentroid(points, -1 * angleWithHorizontal);
+            points = RotateAndTranslate(points, -1 * angleWithHorizontal);
 
             // DEBUG: Draw a circle around each rotated point.
             curShade = 0;
@@ -257,15 +310,13 @@ namespace OneDollarUnistroke
 
             // Step 4 - Compare each point set to several predetermined and determine the closest.
             // Calculate the path distance (the average distance between corresponding points
-            // on the user's stroke and the template).
-            double pathDist = GetPathDistance(points, testSymbol);
+            // on the user's stroke and the template at the best angle).
+            double pathDist = GetBestPathDistance(points, testSymbol);
             Console.WriteLine(pathDist);
 
             // Calculate the score, showing how close the path is to the template from zero to one.
             double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
             Console.WriteLine(score);
-
-            // Step 5 - Calculate a score for this predetermined and inform the user.
         }
     }
 
