@@ -159,6 +159,13 @@ namespace OneDollarUnistroke
             GetCollectionDimensions(points, out double width, out double height);
             double widthRatio = boxSideLen / width;
             double heightRatio = boxSideLen / height;
+
+            // If either ratio is invalid, set it to a usable value.
+            if (double.IsInfinity(widthRatio))
+                widthRatio = boxSideLen;
+            if (double.IsInfinity(heightRatio))
+                heightRatio = boxSideLen;
+
             StylusPointCollection scaled = new StylusPointCollection();
 
             // Scale every point to the given ratios.
