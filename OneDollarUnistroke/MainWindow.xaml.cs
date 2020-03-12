@@ -11,6 +11,7 @@ namespace OneDollarUnistroke
     {
         private const int N = 64;
         private const int BOX_SIZE = 100;
+        private StylusPoint centroid;
         private readonly StylusPointCollection testSymbol;
 
         public MainWindow()
@@ -28,8 +29,8 @@ namespace OneDollarUnistroke
             testSymbol = SampleStroke(new Stroke(testSymbol));
             StylusPoint centroid = GetCentroid(testSymbol);
             double angleWithHorizontal = Math.Atan2(centroid.Y - testSymbol[0].Y, testSymbol[0].X - centroid.X);
-            testSymbol = RotateAboutCentroid(testSymbol, -1 * angleWithHorizontal, centroid);
-            testSymbol = ScaleToBox(testSymbol, BOX_SIZE, centroid);
+            testSymbol = RotateAboutCentroid(testSymbol, -1 * angleWithHorizontal);
+            testSymbol = ScaleToBox(testSymbol, BOX_SIZE);
         }
 
         /// SampleStroke - returns a StylusPointCollection of N points
@@ -92,7 +93,7 @@ namespace OneDollarUnistroke
         }
 
         // RotateAboutCentroid - Rotate points around centroid counterclockwise by the radians of angle.
-        private StylusPointCollection RotateAboutCentroid(StylusPointCollection points, double angle, StylusPoint centroid)
+        private StylusPointCollection RotateAboutCentroid(StylusPointCollection points, double angle)
         {
             StylusPointCollection rotated = new StylusPointCollection();
 
@@ -109,9 +110,7 @@ namespace OneDollarUnistroke
                 curPoint.X = origX * Math.Cos(angle) + origY * Math.Sin(angle);
                 curPoint.Y = origY * Math.Cos(angle) - origX * Math.Sin(angle);
 
-                // Move the new point to its actual position and add it to the new figure.
-                curPoint.X += centroid.X;
-                curPoint.Y += centroid.Y;
+                // Add the point to the new figure.
                 rotated.Add(curPoint);
             }
             return rotated;
@@ -145,7 +144,7 @@ namespace OneDollarUnistroke
         }
 
         // ScaleToBox - Scale points to fit in a square with sizes of boxSideLen around the centroid.
-        private StylusPointCollection ScaleToBox(StylusPointCollection points, double boxSideLen, StylusPoint centroid)
+        private StylusPointCollection ScaleToBox(StylusPointCollection points, double boxSideLen)
         {
             // Get the dimensions and set the ratios of the width and height.
             GetCollectionDimensions(points, out double width, out double height);
@@ -153,13 +152,13 @@ namespace OneDollarUnistroke
             double heightRatio = boxSideLen / height;
             StylusPointCollection scaled = new StylusPointCollection();
 
-            // Scale every point to the given ratios and move the centroid to the origin.
+            // Scale every point to the given ratios.
             for (int i = 0; i < points.Count; i++)
             {
                 StylusPoint curPoint = points[i];
 
-                curPoint.X = (curPoint.X - centroid.X) * widthRatio;
-                curPoint.Y = (curPoint.Y - centroid.Y) * heightRatio;
+                curPoint.X *= widthRatio;
+                curPoint.Y *= heightRatio;
 
                 scaled.Add(curPoint);
             }
@@ -226,7 +225,7 @@ namespace OneDollarUnistroke
             }
 
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
-            StylusPoint centroid = GetCentroid(points);
+            centroid = GetCentroid(points);
 
             // DEBUG: Draw a circle at the centroid.
             DrawPointCircle(centroid.X, centroid.Y, Colors.Orange);
@@ -235,7 +234,7 @@ namespace OneDollarUnistroke
             double angleWithHorizontal = Math.Atan2(centroid.Y - points[0].Y, points[0].X - centroid.X);
 
             // Rotate the figure by this angle in the opposite direction.
-            points = RotateAboutCentroid(points, -1 * angleWithHorizontal, centroid);
+            points = RotateAboutCentroid(points, -1 * angleWithHorizontal);
 
             // DEBUG: Draw a circle around each rotated point.
             curShade = 0;
@@ -246,7 +245,7 @@ namespace OneDollarUnistroke
             }
 
             // Step 3 - Scale the points to fit in a boundary square.
-            points = ScaleToBox(points, BOX_SIZE, centroid);
+            points = ScaleToBox(points, BOX_SIZE);
 
             // DEBUG: Draw a circle around each scaled point.
             curShade = 0;
