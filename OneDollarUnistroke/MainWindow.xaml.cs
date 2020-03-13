@@ -23,6 +23,7 @@ namespace OneDollarUnistroke
         private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
         private StylusPoint centroid;
 
+        /// Constructor - Makes the MainWindow and loads the symbols.
         public MainWindow()
         {
             InitializeComponent();
@@ -62,8 +63,8 @@ namespace OneDollarUnistroke
             symbols.Add("X", ScaleToBox(xSymbol, BOX_SIZE));
         }
 
-        /// SampleStroke - returns a StylusPointCollection of N points
-        ///                on the point, which are equal distance apart.
+        /// SampleStroke - returns a StylusPointCollection of N points,
+        ///                which are an equal distance apart.
         private StylusPointCollection SampleStroke(Stroke curStroke)
         {
             // Get all the stylus points and convert them into a PathFigureCollection
@@ -108,7 +109,7 @@ namespace OneDollarUnistroke
             return sampledPoints;
         }
 
-        // GetCentroid - Calculates and returns the centroid of points.
+        /// GetCentroid - Calculates and returns the centroid of points.
         private StylusPoint GetCentroid(StylusPointCollection points)
         {
             double xSum = 0;
@@ -121,8 +122,8 @@ namespace OneDollarUnistroke
             return new StylusPoint(xSum / points.Count, ySum / points.Count);
         }
 
-        // RotateAndTranslate - Rotate points around the centroid counterclockwise by the radians of angle,
-        //                      and then translates it to the origin.
+        /// RotateAndTranslate - Rotate points around the centroid counterclockwise
+        ///                      by angle (in radians), and then translates it to the origin.
         private StylusPointCollection RotateAndTranslate(StylusPointCollection points, double angle)
         {
             StylusPointCollection rotated = new StylusPointCollection();
@@ -151,7 +152,7 @@ namespace OneDollarUnistroke
             return rotated;
         }
 
-        // GetCollectionDimensions - Return the width and height of points.
+        /// GetCollectionDimensions - Return the width and height of points.
         private void GetCollectionDimensions(StylusPointCollection points, out double width, out double height)
         {
             // Set the defaults.
@@ -178,7 +179,7 @@ namespace OneDollarUnistroke
             height = maxPosY - minPosY;
         }
 
-        // ScaleToBox - Scale points to fit in a square with sizes of boxSideLen.
+        /// ScaleToBox - Scale points to fit in a square with sizes of boxSideLen.
         private StylusPointCollection ScaleToBox(StylusPointCollection points, double boxSideLen)
         {
             // Get the dimensions and set the ratios of the width and height.
@@ -192,9 +193,8 @@ namespace OneDollarUnistroke
             if (double.IsInfinity(heightRatio))
                 heightRatio = boxSideLen;
 
-            StylusPointCollection scaled = new StylusPointCollection();
-
             // Scale every point to the given ratios.
+            StylusPointCollection scaled = new StylusPointCollection();
             for (int i = 0; i < points.Count; i++)
             {
                 StylusPoint curPoint = points[i];
@@ -207,7 +207,7 @@ namespace OneDollarUnistroke
             return scaled;
         }
 
-        // GetPathDistance - Calculates the path distance between spc1 and spc2.
+        /// GetPathDistance - Calculates the path distance between spc1 and spc2.
         private double GetPathDistance(StylusPointCollection spc1, StylusPointCollection spc2)
         {
             // Throw an exception if, for whatever reason, the counts do not match.
@@ -228,8 +228,9 @@ namespace OneDollarUnistroke
             return sumOfDistances / spc1.Count;
         }
 
-        // GetBestPathDistance - Calculates the best path distance between spc1 and spc2
-        //                       by rotating spc1 until the MAX_RECOGNITION_ANGLE is met.
+        /// GetBestPathDistance - Calculates the best path distance between spc1 and spc2
+        ///                       by rotating spc1 until the boundaries of the
+        ///                       potential angles are within the MARGIN_OF_RECOGNITION.
         private double GetBestPathDistance(StylusPointCollection spc1, StylusPointCollection spc2)
         {
             // Set the first minimum and maximum theta values.
@@ -271,7 +272,7 @@ namespace OneDollarUnistroke
             return Math.Min(pathDistA, pathDistB);
         }
 
-        // WriteText - Writes the given text with the center at (x, y).
+        /// WriteText - Writes the given text with the center at (x, y).
         private void WriteText(double x, double y, string text)
         {
             // Create the TextBlock.
@@ -281,7 +282,7 @@ namespace OneDollarUnistroke
                 Foreground = new SolidColorBrush(Colors.Black)
             };
 
-            // Use the textBlock to convert the coordinates.
+            // Get the coordinates for the TextBlock's upper left.
             ConvertTextCoordinates(x, y, textBlock, out x, out y);
 
             // Set the block's location and add it.
@@ -290,8 +291,8 @@ namespace OneDollarUnistroke
             sideCanvas.Children.Add(textBlock);
         }
 
-        // ConvertTextCoordinates - Convert x and y, which refer to the text's center,
-        //                          to coordinates which refer to the upper-left.
+        /// ConvertTextCoordinates - Convert x and y, which refer to the text's center,
+        ///                          to coordinates which refer to the upper-left.
         private void ConvertTextCoordinates(double x, double y, TextBlock text, out double xOut, out double yOut)
         {
             // Create the FormattedText object.
@@ -304,7 +305,7 @@ namespace OneDollarUnistroke
             yOut = y - (formattedText.Height / 2.0);
         }
 
-        // WriteOutput - Writes the output (stroke and score) to the sideCanvas.
+        /// WriteOutput - Writes the output (stroke and score) to the sideCanvas.
         private void WriteOutput(string symbolName, double score)
         {
             // Clear the canvas.
