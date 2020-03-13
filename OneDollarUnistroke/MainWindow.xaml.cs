@@ -207,18 +207,6 @@ namespace OneDollarUnistroke
             return scaled;
         }
 
-        // DrawPointCircle - Draws a PointCircle at (x, y) in the given color.
-        private void DrawPointCircle(double x, double y, Color color)
-        {
-            // Create a StylusPoint at (x, y).
-            StylusPointCollection spc = new StylusPointCollection{new StylusPoint(x, y)};
-
-            // Create a PointCircle at the StylusPoint, set the color, and add it.
-            Stroke cir = new PointCircle(spc);
-            cir.DrawingAttributes.Color = color;
-            mainCanvas.Strokes.Add(cir);
-        }
-
         // GetPathDistance - Calculates the path distance between spc1 and spc2.
         private double GetPathDistance(StylusPointCollection spc1, StylusPointCollection spc2)
         {
@@ -358,52 +346,25 @@ namespace OneDollarUnistroke
             // Get the ink stroke so it can be utilized.
             Stroke curStroke = mainCanvas.Strokes[mainCanvas.Strokes.Count - 1];
 
-            // Delete all previous strokes and circles.
+            // Delete all previous strokes.
             mainCanvas.Strokes.Clear();
             mainCanvas.Strokes.Add(curStroke);
 
             // Step 1 - Split the stroke into N points.
             StylusPointCollection points = SampleStroke(curStroke);
 
-            // DEBUG: Draw a circle around each point.
-            byte curShade = 0;
-            foreach (StylusPoint p in points)
-            {
-                DrawPointCircle(p.X, p.Y, Color.FromRgb(curShade, 0, 0));
-                curShade += 0x4;
-            }
-
             // Step 2 - Rotate so the angle between the 1st point and centroid is zero.
             // Additionally, move the centroid to (0, 0) so future calculations are easier.
             centroid = GetCentroid(points);
 
-            // DEBUG: Draw a circle at the centroid.
-            DrawPointCircle(centroid.X, centroid.Y, Colors.Orange);
-
             // Get the angle between the first point and the centroid.
             double angleWithHorizontal = Math.Atan2(centroid.Y - points[0].Y, points[0].X - centroid.X);
 
-            // Rotate the figure by this angle in the opposite direction.
+            // Rotate the figure by this angle in the opposite direction, and translate to the origin.
             points = RotateAndTranslate(points, -1 * angleWithHorizontal);
-
-            // DEBUG: Draw a circle around each rotated point.
-            curShade = 0;
-            foreach (StylusPoint p in points)
-            {
-                DrawPointCircle(p.X, p.Y, Color.FromRgb(0, 255, curShade));
-                curShade += 0x4;
-            }
 
             // Step 3 - Scale the points to fit in a boundary square.
             points = ScaleToBox(points, BOX_SIZE);
-
-            // DEBUG: Draw a circle around each scaled point.
-            curShade = 0;
-            foreach (StylusPoint p in points)
-            {
-                DrawPointCircle(p.X, p.Y, Color.FromRgb(255, curShade, 0));
-                curShade += 0x4;
-            }
 
             // Step 4 - Compare each point set to predetermined symbols and determine the closest.
             // Calculate the path distance (the average distance between corresponding points
@@ -423,30 +384,9 @@ namespace OneDollarUnistroke
 
             // Calculate the score, showing how close the path is to the template from zero to one.
             double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
-            Console.WriteLine(symbolName + ": " + score);
 
             // Write the output to the sideCanvas.
             WriteOutput(symbolName, score);
-        }
-    }
-
-    // PointCircle - a circle drawn around a specific point.
-    public class PointCircle : Stroke
-    {
-        public PointCircle(StylusPointCollection pts) : base(pts)
-        {
-            this.StylusPoints = pts;
-        }
-
-        // DrawCore - Sets up and draws the ellipse.
-        protected override void DrawCore(DrawingContext drawingContext, DrawingAttributes drawingAttributes)
-        {
-            SolidColorBrush brush2 = new SolidColorBrush(drawingAttributes.Color);
-            brush2.Freeze();
-            StylusPoint stp = this.StylusPoints[0];
-            double radius = 5;
-
-            drawingContext.DrawEllipse(brush2, null, new System.Windows.Point(stp.X, stp.Y), radius, radius);
         }
     }
 }
