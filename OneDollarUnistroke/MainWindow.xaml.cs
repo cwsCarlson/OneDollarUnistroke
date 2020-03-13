@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Input;
@@ -9,31 +10,49 @@ namespace OneDollarUnistroke
     /// Interaction logic for MainWindow.xaml
     public partial class MainWindow : Window
     {
-        private const int N = 64;
         private const int BOX_SIZE = 100;
-        private const int MAX_RECOGNITION_ANGLE = 45;
         private const int MARGIN_OF_RECOGNITION = 2;
+        private const int MAX_RECOGNITION_ANGLE = 45;
+        private const int N = 64;
+        
+        private readonly Dictionary<string, StylusPointCollection> symbols;
         private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
-        private readonly StylusPointCollection testSymbol;
         private StylusPoint centroid;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            // Create the testSymbol.
-            testSymbol = new StylusPointCollection
+            // Create the symbol dictionary.
+            symbols = new Dictionary<string, StylusPointCollection>();
+
+            // Create the 1st test symbol, Triangle.
+            StylusPointCollection triSymbol = new StylusPointCollection
+            {
+                new StylusPoint(-1, -1),
+                new StylusPoint(1, 1),
+                new StylusPoint(1, -1),
+                new StylusPoint(-1, -1)
+            };
+            triSymbol = SampleStroke(new Stroke(triSymbol));
+            centroid = GetCentroid(triSymbol);
+            double angleWithHorizontal = Math.Atan2(centroid.Y - triSymbol[0].Y, triSymbol[0].X - centroid.X);
+            triSymbol = RotateAndTranslate(triSymbol, -1 * angleWithHorizontal);
+            symbols.Add("Triangle", ScaleToBox(triSymbol, BOX_SIZE));
+
+            // Create the 2nd test symbol, X.
+            StylusPointCollection xSymbol = new StylusPointCollection
             {
                 new StylusPoint(-1, -1),
                 new StylusPoint(1, 1),
                 new StylusPoint(1, -1),
                 new StylusPoint(-1, 1)
             };
-            testSymbol = SampleStroke(new Stroke(testSymbol));
-            StylusPoint centroid = GetCentroid(testSymbol);
-            double angleWithHorizontal = Math.Atan2(centroid.Y - testSymbol[0].Y, testSymbol[0].X - centroid.X);
-            testSymbol = RotateAndTranslate(testSymbol, -1 * angleWithHorizontal);
-            testSymbol = ScaleToBox(testSymbol, BOX_SIZE);
+            xSymbol = SampleStroke(new Stroke(xSymbol));
+            centroid = GetCentroid(xSymbol);
+            angleWithHorizontal = Math.Atan2(centroid.Y - xSymbol[0].Y, xSymbol[0].X - centroid.X);
+            xSymbol = RotateAndTranslate(xSymbol, -1 * angleWithHorizontal);
+            symbols.Add("X", ScaleToBox(xSymbol, BOX_SIZE));
         }
 
         /// SampleStroke - returns a StylusPointCollection of N points
@@ -315,15 +334,25 @@ namespace OneDollarUnistroke
                 curShade += 0x4;
             }
 
-            // Step 4 - Compare each point set to several predetermined and determine the closest.
+            // Step 4 - Compare each point set to predetermined symbols and determine the closest.
             // Calculate the path distance (the average distance between corresponding points
-            // on the user's stroke and the template at the best angle).
-            double pathDist = GetBestPathDistance(points, testSymbol);
-            Console.WriteLine(pathDist);
+            // on the user's stroke and the template at the best angle) for each symbol and
+            // record it if its path distance is smaller.
+            string symbolName = null;
+            double pathDist = double.MaxValue;
+            foreach (KeyValuePair<string, StylusPointCollection> pair in symbols)
+            {
+                double curPathDist = GetBestPathDistance(points, pair.Value);
+                if(curPathDist < pathDist)
+                {
+                    symbolName = pair.Key;
+                    pathDist = curPathDist;
+                }
+            }
 
             // Calculate the score, showing how close the path is to the template from zero to one.
             double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
-            Console.WriteLine(score);
+            Console.WriteLine(symbolName + ": " + score);
         }
     }
 
