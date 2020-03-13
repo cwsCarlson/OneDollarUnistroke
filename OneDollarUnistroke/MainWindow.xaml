@@ -9,6 +9,6 @@
     <StackPanel Orientation="Horizontal">
         <InkCanvas Name="mainCanvas" MouseLeftButtonUp="LeftMouseUpHandler" Width="525"/>
         <Line X1="0" X2="0" Y1="0" Y2="350" Stroke="Black" StrokeThickness="5"/>
-        <Canvas Name="sideCanvas"  Width="150"/>
+        <Canvas Name="sideCanvas"  Width="145"/>
     </StackPanel>
 </Window>

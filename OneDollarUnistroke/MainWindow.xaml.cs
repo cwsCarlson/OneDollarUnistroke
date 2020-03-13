@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Controls;
+using System.Windows.Shapes;
 
 namespace OneDollarUnistroke
 {
@@ -15,6 +17,7 @@ namespace OneDollarUnistroke
         private const int MARGIN_OF_RECOGNITION = 2;
         private const int MAX_RECOGNITION_ANGLE = 45;
         private const int N = 64;
+        private const int SIDE_MARGIN = 25;
         
         private readonly Dictionary<string, StylusPointCollection> symbols;
         private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
@@ -280,15 +283,68 @@ namespace OneDollarUnistroke
             return Math.Min(pathDistA, pathDistB);
         }
 
-        // WriteText - Writes the given text at (x, y).
+        // WriteText - Writes the given text with the center at (x, y).
         private void WriteText(double x, double y, string text)
         {
-            TextBlock textBlock = new TextBlock();
-            textBlock.Text = text;
-            textBlock.Foreground = new SolidColorBrush(Colors.Black);
+            // Create the TextBlock.
+            TextBlock textBlock = new TextBlock
+            {
+                Text = text,
+                Foreground = new SolidColorBrush(Colors.Black)
+            };
+
+            // Use the textBlock to convert the coordinates.
+            ConvertTextCoordinates(x, y, textBlock, out x, out y);
+
+            // Set the block's location and add it.
             Canvas.SetLeft(textBlock, x);
             Canvas.SetTop(textBlock, y);
             sideCanvas.Children.Add(textBlock);
+        }
+
+        // ConvertTextCoordinates - Convert x and y, which refer to the text's center,
+        //                          to coordinates which refer to the upper-left.
+        private void ConvertTextCoordinates(double x, double y, TextBlock text, out double xOut, out double yOut)
+        {
+            // Create the FormattedText object.
+            FormattedText formattedText = new FormattedText(text.Text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                                                            new Typeface(text.FontFamily, text.FontStyle, text.FontWeight,
+                                                            text.FontStretch), text.FontSize, Brushes.Black);
+
+            // Calculate the new values.
+            xOut = x - (formattedText.Width / 2.0);
+            yOut = y - (formattedText.Height / 2.0);
+        }
+
+        // WriteOutput - Writes the output (stroke and score) to the sideCanvas.
+        private void WriteOutput(string symbolName, double score)
+        {
+            // Clear the canvas.
+            sideCanvas.Children.Clear();
+
+            // Write the name at the top.
+            WriteText(sideCanvas.ActualWidth / 2, (sideCanvas.ActualHeight / 2) - (BOX_SIZE / 2.0) - SIDE_MARGIN, symbolName);
+
+            // Place the symbol in the middle by drawing lines between StylusPoints.
+            StylusPointCollection points = symbols[symbolName];
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                Line line = new Line
+                {
+                    Stroke = Brushes.Black,
+
+                    X1 = points[i].X + sideCanvas.ActualWidth / 2,
+                    X2 = points[i + 1].X + sideCanvas.ActualWidth / 2,
+                    Y1 = points[i].Y + sideCanvas.ActualHeight / 2,
+                    Y2 = points[i + 1].Y + sideCanvas.ActualHeight / 2,
+
+                    StrokeThickness = 2
+                };
+                sideCanvas.Children.Add(line);
+            }
+
+            // Write the score at the bottom.
+            WriteText(sideCanvas.ActualWidth / 2, (sideCanvas.ActualHeight / 2) + (BOX_SIZE / 2.0) + SIDE_MARGIN, "Score:\n" + score);
         }
 
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
@@ -370,8 +426,7 @@ namespace OneDollarUnistroke
             Console.WriteLine(symbolName + ": " + score);
 
             // Write the output to the sideCanvas.
-            sideCanvas.Children.Clear();
-            WriteText(0, 0, symbolName);
+            WriteOutput(symbolName, score);
         }
     }
 
