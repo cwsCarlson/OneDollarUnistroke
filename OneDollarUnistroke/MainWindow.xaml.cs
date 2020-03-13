@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Controls;
 
 namespace OneDollarUnistroke
 {
@@ -22,6 +23,9 @@ namespace OneDollarUnistroke
         public MainWindow()
         {
             InitializeComponent();
+
+            // Set the color of sideCanvas.
+            sideCanvas.Background = Brushes.LightGray;
 
             // Create the symbol dictionary.
             symbols = new Dictionary<string, StylusPointCollection>();
@@ -209,7 +213,7 @@ namespace OneDollarUnistroke
             // Create a PointCircle at the StylusPoint, set the color, and add it.
             Stroke cir = new PointCircle(spc);
             cir.DrawingAttributes.Color = color;
-            myCanvas.Strokes.Add(cir);
+            mainCanvas.Strokes.Add(cir);
         }
 
         // GetPathDistance - Calculates the path distance between spc1 and spc2.
@@ -276,20 +280,31 @@ namespace OneDollarUnistroke
             return Math.Min(pathDistA, pathDistB);
         }
 
+        // WriteText - Writes the given text at (x, y).
+        private void WriteText(double x, double y, string text)
+        {
+            TextBlock textBlock = new TextBlock();
+            textBlock.Text = text;
+            textBlock.Foreground = new SolidColorBrush(Colors.Black);
+            Canvas.SetLeft(textBlock, x);
+            Canvas.SetTop(textBlock, y);
+            sideCanvas.Children.Add(textBlock);
+        }
+
         /// LeftMouseUpHandler - Controls what happens when the left mouse is released.
         /// This means that the algorithm is run.
         private void LeftMouseUpHandler(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             // If there are no strokes stored, end here.
-            if (myCanvas.Strokes.Count == 0)
+            if (mainCanvas.Strokes.Count == 0)
                 return;
 
             // Get the ink stroke so it can be utilized.
-            Stroke curStroke = myCanvas.Strokes[myCanvas.Strokes.Count - 1];
+            Stroke curStroke = mainCanvas.Strokes[mainCanvas.Strokes.Count - 1];
 
             // Delete all previous strokes and circles.
-            myCanvas.Strokes.Clear();
-            myCanvas.Strokes.Add(curStroke);
+            mainCanvas.Strokes.Clear();
+            mainCanvas.Strokes.Add(curStroke);
 
             // Step 1 - Split the stroke into N points.
             StylusPointCollection points = SampleStroke(curStroke);
@@ -353,6 +368,10 @@ namespace OneDollarUnistroke
             // Calculate the score, showing how close the path is to the template from zero to one.
             double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
             Console.WriteLine(symbolName + ": " + score);
+
+            // Write the output to the sideCanvas.
+            sideCanvas.Children.Clear();
+            WriteText(0, 0, symbolName);
         }
     }
 

@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:OneDollarUnistroke"
         mc:Ignorable="d"
-        Title="MainWindow" Height="350" Width="525">
-  <Grid>
-    <InkCanvas Name="myCanvas" MouseLeftButtonUp="LeftMouseUpHandler">
-    </InkCanvas>
-  </Grid>
+        Title="Stroke Recognizer" Height="350" Width="675">
+    <StackPanel Orientation="Horizontal">
+        <InkCanvas Name="mainCanvas" MouseLeftButtonUp="LeftMouseUpHandler" Width="525"/>
+        <Line X1="0" X2="0" Y1="0" Y2="350" Stroke="Black" StrokeThickness="5"/>
+        <Canvas Name="sideCanvas"  Width="150"/>
+    </StackPanel>
 </Window>
