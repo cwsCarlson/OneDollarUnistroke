@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
@@ -19,11 +20,11 @@ namespace OneDollarUnistroke
         private const int N = 64;
         private const int SIDE_MARGIN = 25;
         
-        private readonly Dictionary<string, StylusPointCollection> symbols;
+        private readonly Dictionary<string, StylusPointCollection> gestures;
         private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
         private StylusPoint centroid;
 
-        /// Constructor - Makes the MainWindow and loads the symbols.
+        /// Constructor - Makes the MainWindow and loads the gestures.
         public MainWindow()
         {
             InitializeComponent();
@@ -31,36 +32,64 @@ namespace OneDollarUnistroke
             // Set the color of sideCanvas.
             sideCanvas.Background = Brushes.LightGray;
 
-            // Create the symbol dictionary.
-            symbols = new Dictionary<string, StylusPointCollection>();
+            // Create the gesture dictionary.
+            gestures = new Dictionary<string, StylusPointCollection>();
 
-            // Create the 1st test symbol, Triangle.
-            StylusPointCollection triSymbol = new StylusPointCollection
+            // Read in the gesture file and add what is listed.
+            try
             {
-                new StylusPoint(-1, -1),
-                new StylusPoint(1, 1),
-                new StylusPoint(1, -1),
-                new StylusPoint(-1, -1)
-            };
-            triSymbol = SampleStroke(new Stroke(triSymbol));
-            centroid = GetCentroid(triSymbol);
-            double angleWithHorizontal = Math.Atan2(centroid.Y - triSymbol[0].Y, triSymbol[0].X - centroid.X);
-            triSymbol = RotateAndTranslate(triSymbol, -1 * angleWithHorizontal);
-            symbols.Add("Triangle", ScaleToBox(triSymbol, BOX_SIZE));
+                string[] lines = File.ReadAllLines("gestures.txt");
+                foreach(string curLine in lines)
+                {
+                    string[] contents = curLine.Split(' ');
+                    string name = contents[0];
 
-            // Create the 2nd test symbol, X.
-            StylusPointCollection xSymbol = new StylusPointCollection
+                    StylusPointCollection curGesture = new StylusPointCollection();
+                    for(int i = 1; i < contents.Length; i++)
+                    {
+                        string[] coordinates = contents[i].Split(',');
+                        int curX = Int32.Parse(coordinates[0]);
+                        int curY = Int32.Parse(coordinates[1]);
+                        Console.Write("(" + curX + "," + curY + ") ");
+                        curGesture.Add(new StylusPoint(curX, curY));
+                    }
+                    AddGesture(curGesture, name);
+                    Console.WriteLine();
+                }
+            }
+            // If the file is not found, use two predetermined gestures.
+            catch (FileNotFoundException)
             {
-                new StylusPoint(-1, -1),
-                new StylusPoint(1, 1),
-                new StylusPoint(1, -1),
-                new StylusPoint(-1, 1)
-            };
-            xSymbol = SampleStroke(new Stroke(xSymbol));
-            centroid = GetCentroid(xSymbol);
-            angleWithHorizontal = Math.Atan2(centroid.Y - xSymbol[0].Y, xSymbol[0].X - centroid.X);
-            xSymbol = RotateAndTranslate(xSymbol, -1 * angleWithHorizontal);
-            symbols.Add("X", ScaleToBox(xSymbol, BOX_SIZE));
+                // Create the 1st predetermined gesture, Triangle.
+                StylusPointCollection triGesture = new StylusPointCollection
+                {
+                    new StylusPoint(-1, 0),
+                    new StylusPoint(0, 1),
+                    new StylusPoint(1, 0),
+                    new StylusPoint(-1, 0)
+                };
+                AddGesture(triGesture, "Triangle");
+
+                // Create the 2nd predetermined gesture, X.
+                StylusPointCollection xGesture = new StylusPointCollection
+                {
+                    new StylusPoint(-1, -1),
+                    new StylusPoint(1, 1),
+                    new StylusPoint(1, -1),
+                    new StylusPoint(-1, 1)
+                };
+                AddGesture(xGesture, "X");
+            }
+        }
+
+        /// AddGesture - Rotates toAdd, scales it, and adds it to the dictionary.
+        private void AddGesture(StylusPointCollection toAdd, string name)
+        {
+            toAdd = SampleStroke(new Stroke(toAdd));
+            centroid = GetCentroid(toAdd);
+            double angleWithHorizontal = Math.Atan2(centroid.Y - toAdd[0].Y, toAdd[0].X - centroid.X);
+            toAdd = RotateAndTranslate(toAdd, -1 * angleWithHorizontal);
+            gestures.Add(name, ScaleToBox(toAdd, BOX_SIZE));
         }
 
         /// SampleStroke - returns a StylusPointCollection of N points,
@@ -305,17 +334,17 @@ namespace OneDollarUnistroke
             yOut = y - (formattedText.Height / 2.0);
         }
 
-        /// WriteOutput - Writes the output (stroke and score) to the sideCanvas.
-        private void WriteOutput(string symbolName, double score)
+        /// WriteOutput - Writes the output (gesture and score) to the sideCanvas.
+        private void WriteOutput(string gestureName, double score)
         {
             // Clear the canvas.
             sideCanvas.Children.Clear();
 
             // Write the name at the top.
-            WriteText(sideCanvas.ActualWidth / 2, (sideCanvas.ActualHeight / 2) - (BOX_SIZE / 2.0) - SIDE_MARGIN, symbolName);
+            WriteText(sideCanvas.ActualWidth / 2, (sideCanvas.ActualHeight / 2) - (BOX_SIZE / 2.0) - SIDE_MARGIN, gestureName);
 
-            // Place the symbol in the middle by drawing lines between StylusPoints.
-            StylusPointCollection points = symbols[symbolName];
+            // Place the gesture in the middle by drawing lines between StylusPoints.
+            StylusPointCollection points = gestures[gestureName];
             for (int i = 0; i < points.Count - 1; i++)
             {
                 Line line = new Line
@@ -367,18 +396,18 @@ namespace OneDollarUnistroke
             // Step 3 - Scale the points to fit in a boundary square.
             points = ScaleToBox(points, BOX_SIZE);
 
-            // Step 4 - Compare each point set to predetermined symbols and determine the closest.
+            // Step 4 - Compare each point set to predetermined gestures and determine the closest.
             // Calculate the path distance (the average distance between corresponding points
-            // on the user's stroke and the template at the best angle) for each symbol and
+            // on the user's stroke and the template at the best angle) for each gesture and
             // record it if its path distance is smaller.
-            string symbolName = null;
+            string gestureName = null;
             double pathDist = double.MaxValue;
-            foreach (KeyValuePair<string, StylusPointCollection> pair in symbols)
+            foreach (KeyValuePair<string, StylusPointCollection> pair in gestures)
             {
                 double curPathDist = GetBestPathDistance(points, pair.Value);
                 if(curPathDist < pathDist)
                 {
-                    symbolName = pair.Key;
+                    gestureName = pair.Key;
                     pathDist = curPathDist;
                 }
             }
@@ -387,7 +416,7 @@ namespace OneDollarUnistroke
             double score = 1 - (pathDist / (0.5 * BOX_SIZE * Math.Sqrt(2)));
 
             // Write the output to the sideCanvas.
-            WriteOutput(symbolName, score);
+            WriteOutput(gestureName, score);
         }
     }
 }
