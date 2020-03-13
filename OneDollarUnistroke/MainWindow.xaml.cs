@@ -21,6 +21,7 @@ namespace OneDollarUnistroke
         private const int SIDE_MARGIN = 25;
         
         private readonly Dictionary<string, StylusPointCollection> gestures;
+        private readonly Dictionary<string, StylusPointCollection> unrotatedGestures;
         private readonly double GOLD_RATIO = (Math.Sqrt(5) - 1) / 2;
         private StylusPoint centroid;
 
@@ -32,8 +33,9 @@ namespace OneDollarUnistroke
             // Set the color of sideCanvas.
             sideCanvas.Background = Brushes.LightGray;
 
-            // Create the gesture dictionary.
+            // Create the gesture dictionaries.
             gestures = new Dictionary<string, StylusPointCollection>();
+            unrotatedGestures = new Dictionary<string, StylusPointCollection>();
 
             // Read in the gesture file and add what is listed.
             try
@@ -41,20 +43,21 @@ namespace OneDollarUnistroke
                 string[] lines = File.ReadAllLines("gestures.txt");
                 foreach(string curLine in lines)
                 {
+                    // Each line is the name followed by a set of coordinates. Get the name.
                     string[] contents = curLine.Split(' ');
                     string name = contents[0];
 
+                    // Coordinates are two numbers separated by a comma.
+                    // Split and parse each set, then add to curGesture.
                     StylusPointCollection curGesture = new StylusPointCollection();
                     for(int i = 1; i < contents.Length; i++)
                     {
                         string[] coordinates = contents[i].Split(',');
-                        int curX = Int32.Parse(coordinates[0]);
-                        int curY = Int32.Parse(coordinates[1]);
-                        Console.Write("(" + curX + "," + curY + ") ");
+                        double curX = Double.Parse(coordinates[0]);
+                        double curY = Double.Parse(coordinates[1]);
                         curGesture.Add(new StylusPoint(curX, curY));
                     }
                     AddGesture(curGesture, name);
-                    Console.WriteLine();
                 }
             }
             // If the file is not found, use two predetermined gestures.
@@ -63,10 +66,10 @@ namespace OneDollarUnistroke
                 // Create the 1st predetermined gesture, Triangle.
                 StylusPointCollection triGesture = new StylusPointCollection
                 {
+                    new StylusPoint(0, -1),
                     new StylusPoint(-1, 0),
-                    new StylusPoint(0, 1),
                     new StylusPoint(1, 0),
-                    new StylusPoint(-1, 0)
+                    new StylusPoint(0, -1)
                 };
                 AddGesture(triGesture, "Triangle");
 
@@ -82,12 +85,21 @@ namespace OneDollarUnistroke
             }
         }
 
-        /// AddGesture - Rotates toAdd, scales it, and adds it to the dictionary.
+        /// AddGesture - Processes toAdd, and adds it to the dictionaries.
         private void AddGesture(StylusPointCollection toAdd, string name)
         {
+            // Sample the gesture to have N points.
             toAdd = SampleStroke(new Stroke(toAdd));
+
+            // Use RotateAndTranslate with zero degrees to move the gesture to the origin.
             centroid = GetCentroid(toAdd);
-            double angleWithHorizontal = Math.Atan2(centroid.Y - toAdd[0].Y, toAdd[0].X - centroid.X);
+            toAdd = RotateAndTranslate(toAdd, 0);
+
+            // Add a scaled version of this to unrotatedGestures.
+            unrotatedGestures.Add(name, ScaleToBox(toAdd, BOX_SIZE));
+
+            // Calculate the angle of the gesture, then rotate, scale, and add.
+            double angleWithHorizontal = Math.Atan2(-1 * toAdd[0].Y, toAdd[0].X);
             toAdd = RotateAndTranslate(toAdd, -1 * angleWithHorizontal);
             gestures.Add(name, ScaleToBox(toAdd, BOX_SIZE));
         }
@@ -344,7 +356,8 @@ namespace OneDollarUnistroke
             WriteText(sideCanvas.ActualWidth / 2, (sideCanvas.ActualHeight / 2) - (BOX_SIZE / 2.0) - SIDE_MARGIN, gestureName);
 
             // Place the gesture in the middle by drawing lines between StylusPoints.
-            StylusPointCollection points = gestures[gestureName];
+            // Use the unrotated one, as this will likely be easier for the user to comprehend.
+            StylusPointCollection points = unrotatedGestures[gestureName];
             for (int i = 0; i < points.Count - 1; i++)
             {
                 Line line = new Line
